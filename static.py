@@ -1,0 +1,56 @@
+import os
+
+# --------------------------------------
+# GENERAL
+# --------------------------------------
+if os.name == "nt":
+    import msvcrt
+    getch = msvcrt.getch
+elif os.name == "posix":
+    import getch as getchlib
+    getch = getchlib.getch
+else: raise Exception("Unsuported OS")
+
+def toDotdict(obj):
+    if isinstance(obj, dict):
+        return dotdict({k: toDotdict(v) for k, v in obj.items()})
+    elif isinstance(obj, list):
+        return [toDotdict(item) for item in obj]
+    else:
+        return obj
+
+class AnsiColorCodes:
+    Reset = "\033[0m"
+    Black = "\033[30m"
+    Red = "\033[31m"
+    Green = "\033[32m"
+    Yellow = "\033[33m"
+    Blue = "\033[34m"
+    Magenta = "\033[35m"
+    Cyan = "\033[36m"
+    White = "\033[37m"
+
+class dotdict(dict):
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+# --------------------------------------
+# CONFIG
+# --------------------------------------
+MIN_TERM_WIDTH = 50 # Random value
+USER_BASIC_MOVEMENT = ["w", "a", "s", "d"]
+USER_ADVANCED_MOVEMENT = ["inspect", "open", "close", "lock", "unlock", "gather", "deposit"]
+ETC_MAP = dotdict({ # Entity to char map
+    "player": "@",
+    "spawn_point": "S",
+    "chest": "="
+})
+#    "player": "@",   # standard
+#    "npc": "&",      # humanoid / intelligent entity
+#    "chest": "=",    # container / storage
+#    "door": "+",     # classic closed door
+#    "item": "*",     # generic pickup
+#    "object": "#",   # solid / blocking object
+#    "mechanism": "%",# traps, levers, machinery
+#    "spawn": "!",    # point of interest / danger

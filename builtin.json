@@ -1,0 +1,20 @@
+{
+    "action_maps": {
+        "chest": {
+            "inspect": "builtin/inspect",
+            "open": "builtin/open",
+            "close": "builtin/close",
+            "lock": "builtin/lock",
+            "unlock": "builtin/unlock",
+            "gather": "builtin/gather",
+            "deposit": "builtin/deposit"
+        }
+    },
+    "actions": {
+        "inspect": "display_text:\n  text_template: current_entity.properties.inspect_text",
+        "open": "set:\n  field: current_entity.properties.open\n  value: true\ndisplay_text:\n  text: You open the chest.",
+        "close": "set:\n  field: current_entity.properties.open\n  value: false\ndisplay_text:\n  text: You close the chest.",
+        "gather": "if:\n  a: current_entity.properties.open\n  op: ==\n  b: true\n  exec:\n    display_text:\n      text: CHANGE ME TO PICK UP ITEMS\nelse:\n  display_text:\n    text: Open the chest first",
+        "deposit": "if:\n  a: current_entity.properties.open\n  op: ==\n  b: true\n  exec:\n    display_text:\n      text: CHANGE ME TO DEPOSIT ITEMS\nelse:\n  display_text:\n    text: Open the chest first"
+    }
+}
