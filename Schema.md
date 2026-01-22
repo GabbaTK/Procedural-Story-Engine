@@ -1,4 +1,4 @@
-# Procedural Story Engine Room Schema
+# PSE Schema
 
 ## World
 A world consists of a folder containing all of the rooms and data.
@@ -24,7 +24,7 @@ MyWorld
 Addons can change some functionality of the engine, like adding more entities, or more commands.
 To define an addon, create a json in the `addons` folder. The following keys can be used to change the functionality:
  - etc_map: Contains a dict where the key is the entity type, and the value is the character to render for that entity.
- - uam: Adds more commands that the player can type
+ - uam: Adds more commands that the player can type.
 
 ## Actions Maps
 Action maps allow developers to quickly define actions for entities from pre-defined maps.
@@ -83,6 +83,8 @@ Templates index the state_map, which is generated per action call. The state map
 World flags contain data shared across all rooms. The flags are mainly changed via functions, but there are some flags provideded by PSE:
  - _world_name -> The name of the world
 
+---
+
 ## Room
 
 ```yaml
@@ -129,9 +131,8 @@ Chest:
 ### Spawn Point
 ```yaml
 SpawnPoint:
-  properties:
-    type: "spawn_point"
-    linked_exit: string (ID of the exit that leads to this spawn point)
-    coords: int[2]
-    visible: bool
+  type: "spawn_point"
+  linked_exit: string (ID of the exit that leads to this spawn point)
+  coords: int[2]
+  visible: bool
 ```
