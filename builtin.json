@@ -6,15 +6,15 @@
             "close": "builtin/close",
             "lock": "builtin/lock",
             "unlock": "builtin/unlock",
-            "gather": "builtin/gather",
-            "deposit": "builtin/deposit"
+            "gather": "builtin/gather"
         }
     },
     "actions": {
         "inspect": "display_text:\n  text_template: current_entity.properties.inspect_text",
-        "open": "set:\n  field: current_entity.properties.open\n  value: true\ndisplay_text:\n  text: You open the chest.",
-        "close": "set:\n  field: current_entity.properties.open\n  value: false\ndisplay_text:\n  text: You close the chest.",
-        "gather": "if:\n  a: current_entity.properties.open\n  op: ==\n  b: true\n  exec:\n    display_text:\n      text: CHANGE ME TO PICK UP ITEMS\nelse:\n  display_text:\n    text: Open the chest first",
-        "deposit": "if:\n  a: current_entity.properties.open\n  op: ==\n  b: true\n  exec:\n    display_text:\n      text: CHANGE ME TO DEPOSIT ITEMS\nelse:\n  display_text:\n    text: Open the chest first"
+        "open": "if:\n  a: current_entity.properties.locked\n  op: ==\n  b: false\n  exec:\n    set:\n      field: current_entity.properties.open\n      value: true\n    show_content: current_entity.properties.contents\nelse:\n  display_text:\n    text: It is locked",
+        "close": "set:\n  field: current_entity.properties.open\n  value: false\ndisplay_text:\n  text: You close it.",
+        "lock": "set:\n  field: flags.loop_found_val\n  value: false\nif#canlock:\n  a: current_entity.properties.can_lock\n  op: ==\n  b: false\n  exec:\n    display_text:\n      text: This entity cannot be locked\nelse:\n  for:\n    iter: player.inventory\n    exec:\n      if:\n        a: current_item.id\n        op: ==\n        b: STR:key\n        exec:\n          if:\n            a: current_item.lock_id\n            op: ==\n            b: current_entity.properties.key_id\n            exec:\n              break: null\n              set#flag:\n                field: flags.loop_found_val\n                value: true\n              if:\n                a: current_entity.properties.open\n                op: ==\n                b: true\n                exec:\n                  display_text:\n                    text: Close it first\n              else:\n                set#locked:\n                  field: current_entity.properties.locked\n                  value: true\n                display_text:\n                  text: Locked\n  if#keyfound:\n    a: flags.loop_found_val\n    op: ==\n    b: false\n    exec:\n      display_text:\n        text: You do not have the correct key",
+        "unlock": "set:\n  field: flags.loop_found_val\n  value: false\nfor:\n  iter: player.inventory\n  exec:\n    if:\n      a: current_item.id\n      op: ==\n      b: STR:key\n      exec:\n        if:\n          a: current_item.lock_id\n          op: ==\n          b: current_entity.properties.key_id\n          exec:\n            set#locked:\n              field: current_entity.properties.locked\n              value: false\n            display_text:\n              text: Unlocked\n            set#flag:\n              field: flags.loop_found_val\n              value: true\n            break: null\nif:\n  a: flags.loop_found_val\n  op: ==\n  b: false\n  exec:\n    display_text:\n      text: You do not have the correct key",
+        "gather": "if:\n  a: current_entity.properties.open\n  op: ==\n  b: true\n  exec:\n    for:\n      iter: current_entity.properties.contents\n      exec:\n        add:\n          field: player.inventory\n          value_template: current_item\n        remove:\n          field: current_entity.properties.contents\n          idx: 0\n    display_text:\n      text: You pick up the items\nelse:\n  display_text:\n    text: Open it first"
     }
 }

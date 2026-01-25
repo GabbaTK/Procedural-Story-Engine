@@ -1,0 +1,12 @@
+if:
+  a: current_entity.properties.locked
+  op: ==
+  b: false
+  exec:
+    set:
+      field: current_entity.properties.open
+      value: true
+    show_content: current_entity.properties.contents
+else:
+  display_text:
+    text: It is locked

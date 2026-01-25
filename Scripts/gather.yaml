@@ -1,0 +1,19 @@
+if:
+  a: current_entity.properties.open
+  op: ==
+  b: true
+  exec:
+    for:
+      iter: current_entity.properties.contents
+      exec:
+        add:
+          field: player.inventory
+          value_template: current_item
+        remove:
+          field: current_entity.properties.contents
+          idx: 0
+    display_text:
+      text: You pick up the items
+else:
+  display_text:
+    text: Open it first

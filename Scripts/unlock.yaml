@@ -1,0 +1,32 @@
+set:
+  field: flags.loop_found_val
+  value: false
+for:
+  iter: player.inventory
+  exec:
+    if:
+      a: current_item.id
+      op: ==
+      b: STR:key
+      exec:
+        if:
+          a: current_item.lock_id
+          op: ==
+          b: current_entity.properties.key_id
+          exec:
+            set#locked:
+              field: current_entity.properties.locked
+              value: false
+            display_text:
+              text: Unlocked
+            set#flag:
+              field: flags.loop_found_val
+              value: true
+            break: null
+if:
+  a: flags.loop_found_val
+  op: ==
+  b: false
+  exec:
+    display_text:
+      text: You do not have the correct key

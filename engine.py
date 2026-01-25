@@ -26,7 +26,7 @@ class EntityNotFoundException(Exception):
     def __init__(self, *args):
         super().__init__(*args)
 
-class ActionNotFoundException(Exception):
+class HandlerNotFoundException(Exception):
     def __init__(self, *args):
         super().__init__(*args)
 
@@ -47,7 +47,12 @@ class Player:
         self.hp = 20
         self.max_hp = 20
         self.level = 1
-        self.inventory = []
+        self.inventory = [toDotdict({
+    "id": "key",
+    "name": "Key",
+    "uid": None,
+    "lock_id": "asdf"
+})]
         self.engine = None
 
     def reset(self):
@@ -104,35 +109,45 @@ class Player:
         return False
 
     def doAction(self, action: str):
+        """Do an action
+
+        Args:
+            action (str): The action to do.
+
+        Raises:
+            ActionNotFoundException: That action does not exit
+        """
+
         current_entity = self.engine.findEntityByCoords(self.engine.current_room, self.coords)
+
+        if self.__staticAction(action): return
 
         if not current_entity: return
         if action not in current_entity.get("actions", {}): return
 
         handler = current_entity.actions[action]
-        namespace, func = handler.split("/")
-
-        if namespace not in self.engine.actions: raise ActionNotFoundException(f"Action '{action}' is not in the default set of actions, nor has it been loaded by a custom addon.")
-        if func not in self.engine.actions[namespace]: raise ActionNotFoundException(f"Action '{action}' is not in the default set of actions, nor has it been loaded by a custom addon.")
+        namespace, func = self.engine._handlerExists(handler, action)
 
         func = list(self.engine.actions[namespace][func].items())
-        while func:
-            entry, data = func.pop(0) # Entry is what to do, data is data passed to the entry.
 
-            match entry:
-                case "display_text": self.engine._action_displaytext(data, current_entity)
-                case "set": self.engine._action_set(data, current_entity)
-                case "if":
-                    status = self.engine._action_if(data, current_entity)
+        self.engine._script_engine(func, current_entity)
 
-                    if status:
-                        for call, call_data in data.exec.items():
-                            func.insert(0, (call, call_data))
-                case "else":
-                    if not status:
-                        status = True
-                        for call, call_data in data.items():
-                            func.insert(0, (call, call_data))
+    def __staticAction(self, action):
+        if action not in USER_STATIC_ACTION: return False
+
+        match action:
+            case "inventory": self.__staticaction_displayinventory()
+            case "quit": exit()
+
+        return True
+    
+    # --------------------------------------
+    # STATIC ACTIONS
+    # --------------------------------------
+    def __staticaction_displayinventory(self):
+        items = list(map(lambda x: x.name, self.inventory))
+        items = ", ".join(items)
+        self.engine.render(narration="You have: " + items, skip_next=True)
 
 class PSEngine:
     def __init__(self, search_dir: str = "."):
@@ -284,7 +299,7 @@ class PSEngine:
             
         return None
     
-    def findItemByParameter(self, array: list, param: str, target_value: str) -> any:
+    def findItemInArrayByParameter(self, array: list, param: str, target_value: str) -> any:
         """Find an item in an array by its parameter
 
         Args:
@@ -320,12 +335,12 @@ class PSEngine:
         
         return max(map(lambda x: len(x), room.layout.strip().split("\n"))), len(room.layout.strip().split("\n"))
         
-    def render(self, room: dict = None, naration: str = None, skip_next: bool = False) -> None:
+    def render(self, room: dict = None, narration: str = None, skip_next: bool = False) -> None:
         """Renders a room
 
         Args:
             room (dict, optional): The room to render. Defaults to PSEngine.current_room
-            naration (str, optional): Displays text instead of interactions. Defaults to None
+            narration (str, optional): Displays text instead of interactions. Defaults to None
             skip_next (bool, optional): Skips the next render call
 
         Raises:
@@ -389,7 +404,7 @@ class PSEngine:
             buffer.seek(TL_Offset + self.player.coords[0] + self.player.coords[1] * chars_per_line)
             buffer.write(ETC_MAP.player)
 
-            if not naration:
+            if not narration:
                 # Add interactions
                 if (entity := self.findEntityByCoords(room, self.player.coords)):
                     if entity.visible:
@@ -399,9 +414,9 @@ class PSEngine:
                         actions = list(map(lambda x: x[0].title(), actions))
                         buffer.write(" | ".join(actions))
             else:
-                # Add naration
+                # Add narration
                 buffer.seek(first_line + (h - 4) * chars_per_line + 2)
-                buffer.write("> " + naration)
+                buffer.write("> " + narration)
 
         print(buffer.getvalue())
 
@@ -446,10 +461,10 @@ class PSEngine:
                 print(full, end="\r", flush=True)
                 char = getch().lower()
 
-                if char == "\n":
-                    if full.strip() in USER_ADVANCED_MOVEMENT:
+                if char in ("\n", "\r"):
+                    if full.strip() in USER_ADVANCED_MOVEMENT or full.strip() in USER_STATIC_ACTION:
                         return full.strip()
-                    
+
                     break
 
                 full += char
@@ -547,8 +562,9 @@ class PSEngine:
 
         self.actions = toDotdict(self.actions)
 
-    def __buildStateMap(self, current_entity):
-        state_map = {"rooms": self.rooms, "current_room": self.current_room, "flags": self.world_flags, "current_entity": current_entity}
+    def __buildStateMap(self, current_entity, current_item):
+        player_map = {"inventory": self.player.inventory, "coords": {"x": self.player.coords[0], "y": self.player.coords[1]}, "hp": self.player.hp, "max_hp": self.player.max_hp, "level": self.player.level}
+        state_map = {"rooms": self.rooms, "current_room": self.current_room, "flags": self.world_flags, "current_entity": current_entity, "current_item": current_item, "player": player_map}
         return state_map
     
     def __renderTemplate(self, template, state_map, skip_last=0):
@@ -570,7 +586,7 @@ class PSEngine:
                     # Get item with parameter
                     param, value = extracted.split(":")
                     state_map = state_map[item[:start]]
-                    state_map = self.findItemByParameter(state_map, param, value)
+                    state_map = self.findItemInArrayByParameter(state_map, param, value)
             else:
                 state_map = state_map[item]
 
@@ -579,23 +595,92 @@ class PSEngine:
     def __isTemplate(self, template):
         if template == True or template == False: return False # Bool
         if template.isnumeric(): return False # Number
-        if template.startswith('"') and template.endswith('"'): return False # String
+        if template.startswith("STR:"): return False # String
 
         return True # Might leave some edge cases
 
     def __parseImmediate(self, text):
         if type(text) == bool: return text
         if text.isnumeric(): return int(text)
-        return text.replace('"', "")
+        return text.replace("STR:", "")
+    
+    def _handlerExists(self, handler, action):
+        namespace, func = handler.split("/")
+
+        if namespace not in self.actions: raise HandlerNotFoundException(f"Handler for '{action}' is not in the default set of handlers, nor has it been loaded by a custom addon.")
+        if func not in self.actions[namespace]: raise HandlerNotFoundException(f"Handler for '{action}' is not in the default set of handlers, nor has it been loaded by a custom addon.")
+
+        return namespace, func
+
+    def _script_engine(self, script, current_entity):
+        queue = []
+        current_item = None
+        item_array = None
+        flag_manual_break = False
+        while script:
+            entry, data = script.pop(0) # Entry is what to do, data is data passed to the entry.
+            entry = entry.split("#")[0]
+
+            match entry:
+                case "display_text": self.__action_displaytext(data, current_entity, current_item)
+                case "show_content": self.__action_showcontent(data, current_entity, current_item)
+                case "set": self.__action_set(data, current_entity, current_item)
+                case "add": self.__action_add(data, current_entity, current_item)
+                case "remove": self.__action_remove(data, current_entity, current_item)
+                case "break": flag_manual_break = True
+                case "raise":
+                    handler = self.__action_raise(data, current_entity, current_item)
+                    namespace, new_func = self._handlerExists(handler, data)
+                    #new_func = list(self.engine.actions[namespace][new_func].items())
+                    #for call, call_data in new_func[::-1]:
+                    #    script.insert(0, (call, call_data))
+                case "if":
+                    status = self.__action_if(data, current_entity, current_item)
+
+                    if status:
+                        for call, call_data in list(data.exec.items())[::-1]:
+                            script.insert(0, (call, call_data))
+                case "else":
+                    if not status:
+                        status = True
+                        for call, call_data in list(data.items())[::-1]:
+                            script.insert(0, (call, call_data))
+                case "for":
+                    flag_break = False
+                    if data.iter == "CONT":
+                        index = item_array.index(current_item)
+                        index += 1
+
+                        if index == len(item_array):
+                            flag_break = True
+                        else:
+                            current_item = item_array[index]
+                    else:
+                        item_array = dc(self.__action_for(data, current_entity)) # Unlink to allow for modification while running
+                        if len(item_array) > 0: current_item = item_array[0]
+                        else: flag_break = True
+
+                    if flag_manual_break:
+                        flag_break = True
+                        flag_manual_break = False
+
+                    if not flag_break:
+                        for call, call_data in list(data.exec.items())[::-1]:
+                            script.insert(0, (call, call_data))
+
+                        script.insert(0, ("for", toDotdict({"iter": "CONT", "exec": data.exec})))
+
+        for item, entity in queue:
+            self._script_engine(item, entity)
 
     # --------------------------------------
     # ACTIONS
     # --------------------------------------
-    def _action_displaytext(self, params, current_entity):
-        state_map = self.__buildStateMap(current_entity)
+    def __action_displaytext(self, params, current_entity, current_item):
+        state_map = self.__buildStateMap(current_entity, current_item)
         
         if params.get("text", None):
-            self.render(naration=params.text, skip_next=True)
+            self.render(narration=params.text, skip_next=True)
         elif params.get("text_template", None):
             try:
                 cur_state_map = self.__renderTemplate(params.text_template, state_map)[0]
@@ -603,17 +688,57 @@ class PSEngine:
                 raise InvalidTemplateException(f"Action: display_text\nTemplate: {params.text_template}\nInvalid field: {e}\n\nValues:\nstate_map: {state_map}")
                 
             if type(cur_state_map) == str or type(cur_state_map) == int:
-                self.render(naration=cur_state_map, skip_next=True)
+                self.render(narration=cur_state_map, skip_next=True)
             else:
                 raise InvalidTemplateException(f"Action: display_text\nTemplate: {params.text_template}\nFinal value: {cur_state_map}\nFinal value is not an acceptable type\nType is: {type(cur_state_map)}, accetable is str or int\n\nValues:\nstate_map: {state_map}")
 
-    def _action_set(self, params, current_entity):
-        state_map = self.__buildStateMap(current_entity)
+    def __action_showcontent(self, template, current_entity, current_item):
+        state_map = self.__buildStateMap(current_entity, current_item)
+        content = self.__renderTemplate(template, state_map)[0]
+        content_names = list(map(lambda x: x.name, content))
+        content_str = ", ".join(content_names)
+        content_str = "Contents: " + content_str
+
+        self.render(narration=content_str, skip_next=True)
+
+    def __action_set(self, params, current_entity, current_item):
+        state_map = self.__buildStateMap(current_entity, current_item)
         fields, last = self.__renderTemplate(params.field, state_map, 1)
         fields[last] = params.value
 
-    def _action_if(self, params, current_entity):
-        state_map = self.__buildStateMap(current_entity)
+    def __action_add(self, params, current_entity, current_item):
+        state_map = self.__buildStateMap(current_entity, current_item)
+        field = self.__renderTemplate(params.field, state_map)[0]
+
+        if type(field) != list:
+            raise InvalidTemplateException(f"Action: for\nTemplate: {params.field}\nFinal value: {field}\nFinal value is not an acceptable type\nType is: {type(field)}, accetable is list\n\nValues:\nstate_map: {state_map}")
+
+        if params.get("value", None):
+            field.append(params.value)
+        elif params.get("value_template", None):
+            field.append(self.__renderTemplate(params.value_template, state_map)[0])
+
+    def __action_remove(self, params, current_entity, current_item):
+        state_map = self.__buildStateMap(current_entity, current_item)
+        field = self.__renderTemplate(params.field, state_map)[0]
+
+        if type(field) != list:
+            raise InvalidTemplateException(f"Action: for\nTemplate: {params.field}\nFinal value: {field}\nFinal value is not an acceptable type\nType is: {type(field)}, accetable is list\n\nValues:\nstate_map: {state_map}")
+
+        if params.get("idx", None):
+            del field[params.idx]
+        elif params.get("param", None):
+            param, value = params.param.split(":")
+            item = self.findItemInArrayByParameter(field, param, self.__parseImmediate(value))
+            field.remove(item)
+
+    def __action_raise(self, template, current_entity, current_item):
+        state_map = self.__buildStateMap(current_entity, current_item)
+        handler = self.__renderTemplate(template, state_map)[0]
+        return handler
+
+    def __action_if(self, params, current_entity, current_item):
+        state_map = self.__buildStateMap(current_entity, current_item)
         a_status = self.__isTemplate(params.a)
         b_status = self.__isTemplate(params.b)
 
@@ -638,3 +763,12 @@ class PSEngine:
                 if a >= b: return True
 
         return False
+    
+    def __action_for(self, params, current_entity):
+        state_map = self.__buildStateMap(current_entity, None)
+        array = self.__renderTemplate(params.iter, state_map)[0]
+
+        if type(array) != list:
+            raise InvalidTemplateException(f"Action: for\nTemplate: {params.iter}\nFinal value: {array}\nFinal value is not an acceptable type\nType is: {type(array)}, accetable is list\n\nValues:\nstate_map: {state_map}")
+
+        return array

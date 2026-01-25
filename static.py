@@ -5,7 +5,8 @@ import os
 # --------------------------------------
 if os.name == "nt":
     import msvcrt
-    getch = msvcrt.getch
+    getchfunc = msvcrt.getch
+    getch = lambda: getchfunc().decode("ASCII")
 elif os.name == "posix":
     import getch as getchlib
     getch = getchlib.getch
@@ -39,8 +40,9 @@ class dotdict(dict):
 # CONFIG
 # --------------------------------------
 MIN_TERM_WIDTH = 50 # Random value
-USER_BASIC_MOVEMENT = ["w", "a", "s", "d"]
-USER_ADVANCED_MOVEMENT = ["inspect", "open", "close", "lock", "unlock", "gather", "deposit"]
+USER_BASIC_MOVEMENT = ["w", "a", "s", "d"] # Movement
+USER_ADVANCED_MOVEMENT = ["inspect", "open", "close", "lock", "unlock", "gather"] # Actions for entities
+USER_STATIC_ACTION = ["inventory", "quit"] # Actions to do anywhere
 ETC_MAP = dotdict({ # Entity to char map
     "player": "@",
     "spawn_point": "S",

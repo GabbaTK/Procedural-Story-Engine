@@ -1,0 +1,5 @@
+set:
+  field: current_entity.properties.open
+  value: false
+display_text:
+  text: You close it.

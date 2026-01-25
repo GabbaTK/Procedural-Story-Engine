@@ -19,6 +19,8 @@ MyWorld
  |   |- anotheraction.yaml
 
 ```
+## Flags
+World flags can be set to a default value in the `flags.json` file
 
 ## Addons
 Addons can change some functionality of the engine, like adding more entities, or more commands.
@@ -44,10 +46,16 @@ MyFunction:
 ```
 
 ### Calls
+If you have multiple same calls on the same level you can suffix them with `#something-unique`.
+`If Else` statements do not have context awareness, meaning, if you have a nested if statement, the inner one will overwrite if the `else` will happen. So even though the first `if` happend, so naturally the else should run, if the second if doesn't run, the `else` will still run.
+
 ```yaml
 display_text:
   text: Text to display (provide either text or text_template, not both)
   text_template: Template to render out
+```
+```yaml
+show_content: Template of a container
 ```
 ```yaml
 set:
@@ -56,15 +64,36 @@ set:
 ```
 ```yaml
 if:
-  a: First parameter
+  a: First parameter (To check against a string, prefix it with 'STR:')
   op: Operation (==, !=, >, <, >=, <=)
-  b: Second parameter
+  b: Second parameter (To check against a string, prefix it with 'STR:')
   exec:
     Calls (Same syntax as functions)
 ```
 ```yaml
 else:
   Calls (Same syntax as functions)
+```
+```yaml
+for:
+  iter: Template to render out. Must render out to a list
+  exec:
+    Calls (Same syntax as function)
+```
+```yaml
+add:
+  field: Field to append to
+  value: Value to add
+  value_template: Value to add from the state_map
+```
+```yaml
+remove:
+  field: Field to remove an element
+  idx: Index of the element to remove
+  param: param:value
+```
+```yaml
+raise: template_to_event
 ```
 
 ### Templates
@@ -78,6 +107,15 @@ Templates index the state_map, which is generated per action call. The state map
  - current_room     -> The current room
  - flags            -> World flags
  - current_entity   -> The entity that the player is standing on
+ - current_item     -> If in a for loop, this is the current element being iterated. Changes to this item do not save in the main state_map
+ - player
+    - inventory
+    - coords
+       - x
+       - y
+    - hp
+    - max_hp
+    - level
 
 ### World Flags
 World flags contain data shared across all rooms. The flags are mainly changed via functions, but there are some flags provideded by PSE:
@@ -102,6 +140,7 @@ Room:
 `action_map` is the default map of actions for the entities, actions can then be overwritten, added or removed.
 To add or change an action, the parameter is the `namespace/handler` function which will run when that action happens.
 To remove an action, set the parameter to `null`.
+Events are defined with `event_name: namespace/handler`. Events happen when code raises an event. When an event is raised, the associated handler function is ran.
 
 ### Chest
 ```yaml
@@ -111,21 +150,21 @@ Chest:
   visible: bool
   properties:
     inspect_text: string
-    locked: bool
-    rusty: bool
-    contents: Item[]
     open: bool
+    locked: bool
+    can_lock: bool, optional
     key_id: string, optional
-    can_lock: bool
+    contents: Item[]
   actions:
-    action_map: "builtin/chest"
+    action_map: "builtin/chest", optional
     inspect: string, optional
     open: string, optional
     close: string, optional
     lock: string, optional
     unlock: string, optional
     gather: string, optional
-    deposit: string, optional
+  events: (optional)
+    event_name: event_handler
 ```
 
 ### Spawn Point

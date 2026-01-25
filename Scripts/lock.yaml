@@ -1,0 +1,48 @@
+set:
+  field: flags.loop_found_val
+  value: false
+if#canlock:
+  a: current_entity.properties.can_lock
+  op: ==
+  b: false
+  exec:
+    display_text:
+      text: This entity cannot be locked
+else:
+  for:
+    iter: player.inventory
+    exec:
+      if:
+        a: current_item.id
+        op: ==
+        b: STR:key
+        exec:
+          if:
+            a: current_item.lock_id
+            op: ==
+            b: current_entity.properties.key_id
+            exec:
+              break: null
+              set#flag:
+                field: flags.loop_found_val
+                value: true
+              if:
+                a: current_entity.properties.open
+                op: ==
+                b: true
+                exec:
+                  display_text:
+                    text: Close it first
+              else:
+                set#locked:
+                  field: current_entity.properties.locked
+                  value: true
+                display_text:
+                  text: Locked
+  if#keyfound:
+    a: flags.loop_found_val
+    op: ==
+    b: false
+    exec:
+      display_text:
+        text: You do not have the correct key"

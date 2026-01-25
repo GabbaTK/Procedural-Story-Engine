@@ -1,0 +1,2 @@
+display_text:
+  text_template: current_entity.properties.inspect_text
