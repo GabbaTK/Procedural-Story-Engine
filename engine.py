@@ -7,6 +7,7 @@ import time
 import contextlib
 import json
 import importlib.util
+import scriptapi
 
 # --------------------------------------
 # EXCEPTIONS
@@ -28,6 +29,10 @@ class EntityNotFoundException(Exception):
         super().__init__(*args)
 
 class HandlerNotFoundException(Exception):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+class ScriptNotFoundError(Exception):
     def __init__(self, *args):
         super().__init__(*args)
 
@@ -156,6 +161,7 @@ class PSEngine:
         self.world_flags = {}
         self.current_room = None
         self.player = Player()
+        self.script_api = scriptapi.API(self)
         self.search_dir = search_dir
         self.world_dir = None
         self.engine_dir = os.path.split(__file__)[0]
@@ -583,6 +589,7 @@ class PSEngine:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
+            module.init(self)
             self.world_scripts[os.path.splitext(script)[0]] = module
 
     def __loadBaseActions(self):
@@ -679,6 +686,7 @@ class PSEngine:
                 case "set": self.__action_set(data, current_entity, current_item)
                 case "add": self.__action_add(data, current_entity, current_item)
                 case "remove": self.__action_remove(data, current_entity, current_item)
+                case "py": self.__action_py(data)
                 case "break": flag_manual_break = True
                 case "raise":
                     handler, entity_of_event = self.__action_raise(data, current_entity, current_item)
@@ -824,3 +832,11 @@ class PSEngine:
             raise InvalidTemplateException(f"Action: for\nTemplate: {params.iter}\nFinal value: {array}\nFinal value is not an acceptable type\nType is: {type(array)}, accetable is list\n\nValues:\nstate_map: {state_map}")
 
         return array
+    
+    def __action_py(self, params):
+        module, func = params.split(":")
+
+        if module not in self.world_scripts: raise ScriptNotFoundError(f"Script '{module}' has not been loaded")
+
+        func = getattr(self.world_scripts[module], func)
+        func()
