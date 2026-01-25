@@ -1,1 +1,1 @@
-This folder contains built-in scripts in an uncompressed form. The actual scripts are stored in builtin.json, these scripts are meant for easier reading or forking. This folder is not required for PSE to run.
+This folder contains built-in scripts in an uncompressed form. The actual scripts are stored in builtin.json, these scripts are meant for easier reading or forking. This folder is not required by PSE to run.

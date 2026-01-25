@@ -6,6 +6,7 @@ import io
 import time
 import contextlib
 import json
+import importlib.util
 
 # --------------------------------------
 # EXCEPTIONS
@@ -160,6 +161,7 @@ class PSEngine:
         self.engine_dir = os.path.split(__file__)[0]
         self.actions = {}
         self.render_skip_next = False
+        self.world_scripts = {}
         
         self.player.engine = self
 
@@ -200,6 +202,7 @@ class PSEngine:
         self.__loadActionMap()
         self.__loadAddons()
         self.__loadActions()
+        self.__loadUserScripts()
 
     def unloadWorld(self) -> None:
         """Unload a world"""
@@ -322,6 +325,31 @@ class PSEngine:
                 pass
             
         raise ItemNotFoundException(f"Cannot find item in the array {array} which has parameter '{param}' set to '{target_value}'")
+    
+    def findEntityFromTemplate(self, template: str, state_map: dict) -> dict:
+        """Find the last entity from a template
+
+        Args:
+            template (str): The template
+            state_map (dict): State map generated from __buildStateMap
+
+        Raises:
+            EntityNotFoundException: Could not find entity
+
+        Returns:
+            dict: The entity
+        """
+
+        length = len(template.split("."))
+
+        for skip_last in range(1, length):
+            rendered = self.__renderTemplate(template, state_map, skip_last)[0]
+
+            if type(rendered) != dict and type(rendered) != dotdict: continue
+            if rendered.get("type", None) in ENTITIES:
+                return rendered
+            
+        raise EntityNotFoundException(f"Cannot find entity in template '{template}'\nState map: {state_map}")
             
     def getRoomWH(self, room: dict) -> tuple[int, int]:
         """Get a rooms width and height
@@ -533,6 +561,30 @@ class PSEngine:
                 for item in loaded.get("uam", []): # User Advanced Movement
                     USER_ADVANCED_MOVEMENT.append(item)
 
+                for item in loaded.get("entities", []):
+                    ENTITIES.append(item)
+
+    def __loadUserScripts(self): # .py not .yaml
+        if not os.path.exists(os.path.join(self.world_dir, "scripts")): return
+
+        print(CUSTOM_SCRIPT_WARNING, end="")
+        while True:
+            char = getch().lower()
+            if char == "n": exit(-1)
+            elif char == "y": break
+        print()
+
+        for script in os.listdir(os.path.join(self.world_dir, "scripts")):
+            path = os.path.join(self.world_dir, "scripts", script)
+
+            if not os.path.isfile(path): continue # If __pycache__ is in the folder
+
+            spec = importlib.util.spec_from_file_location(os.path.splitext(script)[0], path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            self.world_scripts[os.path.splitext(script)[0]] = module
+
     def __loadBaseActions(self):
         self.actions["builtin"] = {}
 
@@ -629,11 +681,10 @@ class PSEngine:
                 case "remove": self.__action_remove(data, current_entity, current_item)
                 case "break": flag_manual_break = True
                 case "raise":
-                    handler = self.__action_raise(data, current_entity, current_item)
+                    handler, entity_of_event = self.__action_raise(data, current_entity, current_item)
                     namespace, new_func = self._handlerExists(handler, data)
-                    #new_func = list(self.engine.actions[namespace][new_func].items())
-                    #for call, call_data in new_func[::-1]:
-                    #    script.insert(0, (call, call_data))
+                    new_func = list(self.actions[namespace][new_func].items())
+                    queue.append((new_func, entity_of_event))
                 case "if":
                     status = self.__action_if(data, current_entity, current_item)
 
@@ -735,7 +786,8 @@ class PSEngine:
     def __action_raise(self, template, current_entity, current_item):
         state_map = self.__buildStateMap(current_entity, current_item)
         handler = self.__renderTemplate(template, state_map)[0]
-        return handler
+        parent_entity = self.findEntityFromTemplate(template, state_map)
+        return handler, parent_entity
 
     def __action_if(self, params, current_entity, current_item):
         state_map = self.__buildStateMap(current_entity, current_item)

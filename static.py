@@ -36,10 +36,24 @@ class dotdict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
+CUSTOM_SCRIPT_WARNING = f"""{AnsiColorCodes.Red}
+=============================
+
+█░█░█ ▄▀█ █▀█ █▄░█ █ █▄░█ █▀▀
+▀▄▀▄▀ █▀█ █▀▄ █░▀█ █ █░▀█ █▄█
+
+=============================
+
+This world has custom scripts!
+Make sure you trust the author of those scripts as they could do damage to your system!
+
+Do you want to continue? (y/n) {AnsiColorCodes.Reset}"""
+
 # --------------------------------------
 # CONFIG
 # --------------------------------------
 MIN_TERM_WIDTH = 50 # Random value
+ENTITIES = ["chest", "spawn_point"] # Required for "findEntityFromTemplate"
 USER_BASIC_MOVEMENT = ["w", "a", "s", "d"] # Movement
 USER_ADVANCED_MOVEMENT = ["inspect", "open", "close", "lock", "unlock", "gather"] # Actions for entities
 USER_STATIC_ACTION = ["inventory", "quit"] # Actions to do anywhere

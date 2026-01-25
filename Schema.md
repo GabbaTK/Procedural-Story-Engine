@@ -17,6 +17,9 @@ MyWorld
  |- actions
  |   |- myaction.yaml
  |   |- anotheraction.yaml
+ |- scripts
+ |   |- myscript.py
+ |   |- anotherscript.py
 
 ```
 ## Flags
@@ -27,6 +30,7 @@ Addons can change some functionality of the engine, like adding more entities, o
 To define an addon, create a json in the `addons` folder. The following keys can be used to change the functionality:
  - etc_map: Contains a dict where the key is the entity type, and the value is the character to render for that entity.
  - uam: Adds more commands that the player can type.
+ - entities: Custom entities
 
 ## Actions Maps
 Action maps allow developers to quickly define actions for entities from pre-defined maps.
@@ -47,7 +51,7 @@ MyFunction:
 
 ### Calls
 If you have multiple same calls on the same level you can suffix them with `#something-unique`.
-`If Else` statements do not have context awareness, meaning, if you have a nested if statement, the inner one will overwrite if the `else` will happen. So even though the first `if` happend, so naturally the else should run, if the second if doesn't run, the `else` will still run.
+`If Else` statements are not context aware, meaning, if you have a nested if statement, the inner one will overwrite if the `else` will happen. So even though the first `if` happend, so naturally the else should run, if the second if doesn't run, the `else` will still run.
 
 ```yaml
 display_text:
@@ -94,6 +98,9 @@ remove:
 ```
 ```yaml
 raise: template_to_event
+```
+```yaml
+py: name_of_script_without_extension:name_of_function
 ```
 
 ### Templates
