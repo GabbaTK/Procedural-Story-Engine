@@ -233,7 +233,7 @@ class PSEngine:
         if type(room) == str: self.current_room = self.findRoomByID(room)
         elif type(room) in [dict, dotdict]: self.current_room = room
 
-        for module in self.world_scripts:
+        for module in self.world_scripts.values():
             module.onLoad()
 
     def findRoomByID(self, search_id: str) -> dict:
@@ -464,7 +464,7 @@ class PSEngine:
 
         if skip_next: self.render_skip_next = True
 
-        for module in self.world_scripts:
+        for module in self.world_scripts.values():
             module.onRender()
 
     def spawnPlayerAtRoot(self) -> None:
@@ -652,6 +652,7 @@ class PSEngine:
     def __renderTemplate(self, template, state_map, skip_last=0):
         # Renders the template only, does not assing. Returns the sub-indexed whatnot state_map
         #cur_state_map = dc(state_map)
+
         items = template.split(".")
         end = len(items) if skip_last == 0 else -skip_last
 
@@ -876,7 +877,7 @@ class PSEngine:
     def __action_py(self, params, current_entity, current_item):
         if params.startswith("TEMP:"):
             state_map = self.__buildStateMap(current_entity, current_item)
-            rendered = self.__renderTemplate(params[5:], state_map)
+            rendered = self.__renderTemplate(params[5:], state_map)[0]
             module, func = rendered.split(":")
         else:
             module, func = params.split(":")
@@ -915,13 +916,17 @@ class PSEngine:
             if params.action == "reset":
                 self.random_choices = []
             elif params.action == "start":
-                self.world_flags = random.choice(self.random_choices)
+                self.world_flags["_random"] = random.choice(self.random_choices)
             elif params.action == "add":
                 for option, weight in params.data.items():
-                    status = self.__isTemplate(option)
+                    status_option = self.__isTemplate(option)
+                    status_weight = self.__isTemplate(weight)
 
-                    if status: option = self.__renderTemplate(option, state_map)[0]
+                    if status_option: option = self.__renderTemplate(option, state_map)[0]
                     else: option = self.__parseImmediate(option)
+
+                    if status_weight: weight = self.__renderTemplate(weight, state_map)[0]
+                    else: weight = self.__parseImmediate(weight)
 
                     self.random_choices.extend([option] * weight)
 

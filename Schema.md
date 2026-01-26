@@ -62,11 +62,11 @@ A detailed guide on how to create scripts is described [here](CustomScripts.md)
 
 ```yaml
 Room:
-  id: string (Unique room identifier)
-  name: string (Player-friendly display name)
-  layout: string (2D text layout without entities)
-  entities: Entity[] (Entities present in room)
-  generators: RoomGeneratorConfig[] (One config per exit)
+  id: string # Unique room identifier
+  name: string # Player-friendly display name
+  layout: string # 2D text layout without entities
+  entities: Entity[] # Entities present in room
+  generators: RoomGeneratorConfig[] # One config per exit
 ```
 
 ## Entity
@@ -99,13 +99,8 @@ Chest:
     contents: Item[]
   actions:
     action_map: "builtin/chest", optional
-    inspect: string, optional
-    open: string, optional
-    close: string, optional
-    lock: string, optional
-    unlock: string, optional
-    gather: string, optional
-  events: (optional)
+    action_name: namespace/function, optional
+  events: # optional
     event_name: event_handler
 ```
 
@@ -113,16 +108,19 @@ Chest:
 ```yaml
 Exit:
   type: "exit"
-  id: string, optional (If you want to differentiate between exits)
+  id: string # To differentiate between exits
   coords: int[2]
   visible: bool
+  actions:
+    action_map: "builtin/exit", optional
+    action_name: namespace/handler, optional
 ```
 
 ### Spawn Point
 ```yaml
 SpawnPoint:
   type: "spawn_point"
-  linked_exit: string (ID of the exit that leads to this spawn point)
+  linked_exit: string # ID of the exit that leads to this spawn point. null if ths is the default spawn point
   coords: int[2]
   visible: bool
 ```
@@ -135,42 +133,42 @@ Each generator can have an associated exit id, meaning, that generator will only
 ### Forced
 ```yaml
 RoomGeneratorConfig:
-  exit: string (Exit identifier)
+  exit: string # Exit identifier
   type: "forced"
-  room: string (Target room ID)
+  room: string # Target room ID
 ```
 
 ### Conditional
 ```yaml
 RoomGeneratorConfig:
-  exit: string (Exit identifier)
+  exit: string # Exit identifier
   type: "conditional"
   conditions:
     - type: if
       a: something
       op: something
       b: something
-      room: string (If evaluates to true, change to this room)
-    - type: if (Multiple if statements can be added)
+      room: string # If evaluates to true, change to this room
+    - type: if # Multiple if statements can be added
     - type: room
-      room: string (Default if no condition matches)
+      room: string # Default if no condition matches
 ```
 
 ### Random
 If you want to dynamically change the weight, you can either set it to a value by using the [`set`](YamlFunctions.md#calls) call, or increment/decrement it by changing the weight directly in the loaded room via a [plugin](CustomScripts.md)
 ```yaml
 RoomGeneratorConfig:
-  exit: string (Exit identifier)
+  exit: string # Exit identifier
   type: "random"
   pool:
-    - room: string (Room ID)
+    - room: string # Room ID
       weight: number
 ```
 
 ### Plugin
 ```yaml
 RoomGeneratorConfig:
-  exit: string (Exit identifier)
+  exit: string # Exit identifier
   type: "plugin"
-  handler: string (Module function reference)
+  handler: string # Module function reference
 ```
