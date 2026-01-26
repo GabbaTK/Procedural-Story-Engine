@@ -55,12 +55,13 @@ Do you want to continue? (y/n) {AnsiColorCodes.Reset}"""
 MIN_TERM_WIDTH = 50 # Random value
 ENTITIES = ["chest", "spawn_point"] # Required for "findEntityFromTemplate"
 USER_BASIC_MOVEMENT = ["w", "a", "s", "d"] # Movement
-USER_ADVANCED_MOVEMENT = ["inspect", "open", "close", "lock", "unlock", "gather"] # Actions for entities
+USER_ADVANCED_MOVEMENT = ["inspect", "open", "close", "lock", "unlock", "gather", "leave"] # Actions for entities
 USER_STATIC_ACTION = ["inventory", "quit"] # Actions to do anywhere
 ETC_MAP = dotdict({ # Entity to char map
     "player": "@",
     "spawn_point": "S",
-    "chest": "="
+    "chest": "=",
+    "exit": "E"
 })
 #    "player": "@",   # standard
 #    "npc": "&",      # humanoid / intelligent entity

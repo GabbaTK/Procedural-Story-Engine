@@ -65,6 +65,11 @@ PSE is a **toolbox for building reactive, text-based worlds**.
 
 ---
 
+## Creating a world
+To create your first world, follow the guide [here](Schema.md)
+
+---
+
 > **Note**  
 > Instructions for creating rooms, entities, generators, and plugins live in separate documentation files.  
 > This README is intentionally conceptual.

@@ -1,0 +1,89 @@
+set:
+  field: flags.loop_found_val
+  value: 0
+for:
+  iter: current_room.generators
+  exec:
+    if#specific:
+      a: current_item.exit
+      op: ==
+      b: current_entity.id
+      exec:
+        break: null
+        set:
+          field: flags.loop_found_val
+          value_template: current_item
+    if#matchall:
+      a: current_item.exit
+      op: ==
+      b: null
+      exec:
+        break: null
+        set:
+          field: flags.loop_found_val
+          value_template: current_item
+if:
+  a: flags.loop_found_val
+  op: =!
+  b: 0
+  exec:
+    if#forced:
+      a: flags.loop_found_val.type
+      op: ==
+      b: STR:forced
+      exec:
+        change_room: current_item.room
+        spawn_player: flags.loop_found_val.exit
+    if#conditional:
+      a: flags.loop_found_val.type
+      op: ==
+      b: STR:conditional
+      exec:
+        for:
+          iter: flags.loop_found_val.conditions
+          exec:
+            if#if:
+              a: current_item.type
+              op: ==
+              b: STR:if
+              exec:
+                if:
+                  a: current_item.a
+                  op: current_item.op
+                  b: current_item.b
+                  exec:
+                    change_room: current_item.room
+                    spawn_player: flags.loop_found_val.exit
+                    break: null
+            if#room:
+              a: current_item.type
+              op: ==
+              b: STR:room
+              exec:
+                change_room: current_item.room
+                spawn_player: flags.loop_found_val.exit
+                break: null
+    if#random:
+      a: flags.loop_found_val.type
+      op: ==
+      b: STR:random
+      exec:
+        random#reset:
+          action: reset
+        for:
+          iter: flags.loop_found_val.pool
+          exec:
+            random:
+              action: add
+              data:
+                current_item.room: current_item.weight
+        random#get:
+          action: start
+        change_room: flags._random
+        spawn_player: flags.loop_found_val.exit
+    if#plugin:
+      a: flags.loop_found_val.type
+      op: ==
+      b: STR:plugin
+      exec:
+        py: TEMP:flags.loop_found_val.handler

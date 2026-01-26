@@ -7,7 +7,7 @@ import time
 import contextlib
 import json
 import importlib.util
-import scriptapi
+import random
 
 # --------------------------------------
 # EXCEPTIONS
@@ -43,6 +43,14 @@ class InvalidTemplateException(Exception):
 class ItemNotFoundException(Exception):
     def __init__(self, *args):
         super().__init__(*args)
+        
+class InvalidOperatorException(Exception):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+class SpawnNotFoundException(Exception):
+    def __init__(self, *args):
+        super().__init__(*args)
 
 # --------------------------------------
 # MAIN
@@ -53,12 +61,7 @@ class Player:
         self.hp = 20
         self.max_hp = 20
         self.level = 1
-        self.inventory = [toDotdict({
-    "id": "key",
-    "name": "Key",
-    "uid": None,
-    "lock_id": "asdf"
-})]
+        self.inventory = []
         self.engine = None
 
     def reset(self):
@@ -73,7 +76,7 @@ class Player:
     def moveUp(self) -> bool:
         """Move the player. Returns True if moved, otherwise False"""
 
-        tile = self.engine.current_room.layout.strip().split("\n")[self.coords[0]][self.coords[1] - 1]
+        tile = self.engine.current_room.layout.strip().split("\n")[self.coords[1] - 1][self.coords[0]]
 
         if tile != "-" and tile != "|" and tile != "+":
             self.coords[1] -= 1
@@ -84,7 +87,7 @@ class Player:
     def moveDown(self) -> bool:
         """Move the player. Returns True if moved, otherwise False"""
 
-        tile = self.engine.current_room.layout.strip().split("\n")[self.coords[0]][self.coords[1] + 1]
+        tile = self.engine.current_room.layout.strip().split("\n")[self.coords[1] + 1][self.coords[0]]
 
         if tile != "-" and tile != "|" and tile != "+":
             self.coords[1] += 1
@@ -95,7 +98,7 @@ class Player:
     def moveLeft(self) -> bool:
         """Move the player. Returns True if moved, otherwise False"""
 
-        tile = self.engine.current_room.layout.strip().split("\n")[self.coords[0] - 1][self.coords[1]]
+        tile = self.engine.current_room.layout.strip().split("\n")[self.coords[1]][self.coords[0] - 1]
 
         if tile != "-" and tile != "|" and tile != "+":
             self.coords[0] -= 1
@@ -106,7 +109,7 @@ class Player:
     def moveRight(self) -> bool:
         """Move the player. Returns True if moved, otherwise False"""
 
-        tile = self.engine.current_room.layout.strip().split("\n")[self.coords[0] + 1][self.coords[1]]
+        tile = self.engine.current_room.layout.strip().split("\n")[self.coords[1]][self.coords[0] + 1]
 
         if tile != "-" and tile != "|" and tile != "+":
             self.coords[0] += 1
@@ -161,7 +164,6 @@ class PSEngine:
         self.world_flags = {}
         self.current_room = None
         self.player = Player()
-        self.script_api = scriptapi.API(self)
         self.search_dir = search_dir
         self.world_dir = None
         self.engine_dir = os.path.split(__file__)[0]
@@ -223,10 +225,16 @@ class PSEngine:
 
         Args:
             room (str | dict): The room to change to
+
+        Raises:
+            RoomNotFoundException: If provided a room id, that room doesn't exist in the loaded world
         """
 
         if type(room) == str: self.current_room = self.findRoomByID(room)
         elif type(room) in [dict, dotdict]: self.current_room = room
+
+        for module in self.world_scripts:
+            module.onLoad()
 
     def findRoomByID(self, search_id: str) -> dict:
         """Find a room from a loaded world by the room id
@@ -456,23 +464,38 @@ class PSEngine:
 
         if skip_next: self.render_skip_next = True
 
-    def spawnPlayerAtRoot(self, room: dict) -> None:
-        """Reset a player to the root spawn point. The root spawn point is identified by having no linked exit
+        for module in self.world_scripts:
+            module.onRender()
 
-        Args:
-            room (dict): The room in which the player will spawn
+    def spawnPlayerAtRoot(self) -> None:
+        """Reset a player to the root spawn point. The root spawn point is identified by having no linked exit
 
         Raises:
             ValueError: A parameter is missing
             EntityNotFoundException: No unlinked spawn is present in the room
         """
 
-        if not room: raise ValueError("'room' parameter is missing.")
         if not self.player: raise ValueError("'player' parameter is missing.")
 
-        spawn = self.findEntityByParameter(room, "linked_exit", None)
+        spawn = self.findEntityByParameter(self.current_room, "linked_exit", None)
 
-        if not spawn: raise EntityNotFoundException(f"Cannot find an unlinked spawn in room '{room.name}'")
+        if not spawn: raise EntityNotFoundException(f"Cannot find an unlinked spawn in room '{self.current_room.name}'")
+
+        self.player.coords = dc(spawn.coords)
+
+    def spawnPlayerAtLinkedExit(self, exit_id: str) -> None:
+        """Spawns the player at the correct spawn depending on the exit
+
+        Args:
+            exit_id (str): The ID of the exit the player left the last room
+
+        Raises:
+            SpawnNotFoundException: No spawn with the correct exit ID exists. This should be in a try except block and run spawnPlayerAtRoot if this exception is thrown
+        """
+
+        spawn = self.findEntityByParameter(self.current_room, "linked_exit", exit_id)
+
+        if not spawn: raise SpawnNotFoundException(f"Cannot find a spawn in the room '{self.current_room.name}' with the linked exit set to '{exit_id}'")
 
         self.player.coords = dc(spawn.coords)
 
@@ -652,15 +675,17 @@ class PSEngine:
         return state_map, items[-1]
     
     def __isTemplate(self, template):
+        if template == None: return False
         if template == True or template == False: return False # Bool
-        if template.isnumeric(): return False # Number
+        if type(template) == int: return False # Number
         if template.startswith("STR:"): return False # String
 
         return True # Might leave some edge cases
 
     def __parseImmediate(self, text):
+        if text == None: return None
         if type(text) == bool: return text
-        if text.isnumeric(): return int(text)
+        if type(text) == int: return text
         return text.replace("STR:", "")
     
     def _handlerExists(self, handler, action):
@@ -686,7 +711,10 @@ class PSEngine:
                 case "set": self.__action_set(data, current_entity, current_item)
                 case "add": self.__action_add(data, current_entity, current_item)
                 case "remove": self.__action_remove(data, current_entity, current_item)
-                case "py": self.__action_py(data)
+                case "py": self.__action_py(data, current_entity, current_item)
+                case "change_room": self.__action_changeroom(data, current_entity, current_item)
+                case "random": self.__action_random(data, current_entity, current_item)
+                case "spawn_player": self.__action_spawnplayer(data, current_entity, current_item)
                 case "break": flag_manual_break = True
                 case "raise":
                     handler, entity_of_event = self.__action_raise(data, current_entity, current_item)
@@ -724,10 +752,10 @@ class PSEngine:
                         flag_manual_break = False
 
                     if not flag_break:
+                        script.insert(0, ("for", toDotdict({"iter": "CONT", "exec": data.exec})))
+
                         for call, call_data in list(data.exec.items())[::-1]:
                             script.insert(0, (call, call_data))
-
-                        script.insert(0, ("for", toDotdict({"iter": "CONT", "exec": data.exec})))
 
         for item, entity in queue:
             self._script_engine(item, entity)
@@ -763,7 +791,12 @@ class PSEngine:
     def __action_set(self, params, current_entity, current_item):
         state_map = self.__buildStateMap(current_entity, current_item)
         fields, last = self.__renderTemplate(params.field, state_map, 1)
-        fields[last] = params.value
+        
+        if params.get("value", None) != None:
+            fields[last] = params.value
+        elif params.get("value_template", None):
+            value = self.__renderTemplate(params.value_template, state_map)[0]
+            fields[last] = value
 
     def __action_add(self, params, current_entity, current_item):
         state_map = self.__buildStateMap(current_entity, current_item)
@@ -808,10 +841,15 @@ class PSEngine:
         if b_status: b = self.__renderTemplate(params.b, state_map)[0]
         else: b = self.__parseImmediate(params.b)
 
-        match params.op:
+        if params.op in ("==", "=!", "<", ">", "<=", ">="):
+            op = params.op
+        else:
+            op = self.__renderTemplate(params.op, state_map)
+
+        match op:
             case "==":
                 if a == b: return True
-            case "!=":
+            case "=!":
                 if a != b: return True
             case "<":
                 if a < b: return True
@@ -821,6 +859,8 @@ class PSEngine:
                 if a <= b: return True
             case ">=":
                 if a >= b: return True
+            case _:
+                raise InvalidOperatorException(f"Received operator '{op}' which is invalid.\nOriginal value: {params.op}")
 
         return False
     
@@ -833,10 +873,66 @@ class PSEngine:
 
         return array
     
-    def __action_py(self, params):
-        module, func = params.split(":")
+    def __action_py(self, params, current_entity, current_item):
+        if params.startswith("TEMP:"):
+            state_map = self.__buildStateMap(current_entity, current_item)
+            rendered = self.__renderTemplate(params[5:], state_map)
+            module, func = rendered.split(":")
+        else:
+            module, func = params.split(":")
 
         if module not in self.world_scripts: raise ScriptNotFoundError(f"Script '{module}' has not been loaded")
 
         func = getattr(self.world_scripts[module], func)
         func()
+
+    def __action_changeroom(self, params, current_entity, current_item):
+        state_map = self.__buildStateMap(current_entity, current_item)
+        status = self.__isTemplate(params)
+
+        if status: room = self.__renderTemplate(params, state_map)[0]
+        else: room = self.__parseImmediate(params)
+
+        self.changeRoom(room)
+
+    def __action_random(self, params, current_entity, current_item):
+        state_map = self.__buildStateMap(current_entity, current_item)
+
+        if params.get("action", None) == None:
+            self.random_choices = []
+            for option, weight in params.items():
+                status = self.__isTemplate(option)
+
+                if status: option = self.__renderTemplate(option, state_map)[0]
+                else: option = self.__parseImmediate(option)
+
+                self.random_choices.extend([option] * weight)
+
+            chosen = random.choice(self.random_choices)
+
+            self.world_flags["_random"] = chosen
+        else:
+            if params.action == "reset":
+                self.random_choices = []
+            elif params.action == "start":
+                self.world_flags = random.choice(self.random_choices)
+            elif params.action == "add":
+                for option, weight in params.data.items():
+                    status = self.__isTemplate(option)
+
+                    if status: option = self.__renderTemplate(option, state_map)[0]
+                    else: option = self.__parseImmediate(option)
+
+                    self.random_choices.extend([option] * weight)
+
+    def __action_spawnplayer(self, params, current_entity, current_item):
+        state_map = self.__buildStateMap(current_entity, current_item)
+        status = self.__isTemplate(params)
+
+        if status: exit_id = self.__renderTemplate(params, state_map)[0]
+        else: exit_id == self.__parseImmediate(params)
+
+        try:
+            self.spawnPlayerAtLinkedExit(exit_id)
+        except SpawnNotFoundException:
+            self.spawnPlayerAtRoot()

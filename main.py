@@ -5,8 +5,8 @@ Engine = engine.PSEngine()
 Engine.loadWorld("TestWorld")
 
 starter_room = Engine.findRoomByID("starter_room")
-Engine.spawnPlayerAtRoot(starter_room)
 Engine.changeRoom(starter_room)
+Engine.spawnPlayerAtRoot()
 
 while True:
     Engine.render()

@@ -53,7 +53,7 @@ MyFunction:
 A detailed guide on how to create functions is described [here](YamlFunctions.md)
 
 ## Scripts
-Scripts are python files that run when called from a yaml function.
+Scripts are python files that run when called from a yaml function. Scripts may be referenced in the schema by other names, such as `modules` or `plugins`
 A detailed guide on how to create scripts is described [here](CustomScripts.md)
 
 ---
@@ -66,8 +66,7 @@ Room:
   name: string (Player-friendly display name)
   layout: string (2D text layout without entities)
   entities: Entity[] (Entities present in room)
-  events: Event[] (Events that can trigger)
-  generator: RoomGeneratorConfig[] (One config per exit)
+  generators: RoomGeneratorConfig[] (One config per exit)
 ```
 
 ## Entity
@@ -75,6 +74,15 @@ Room:
 To add or change an action, the parameter is the `namespace/handler` function which will run when that action happens.
 To remove an action, set the parameter to `null`.
 Events are defined with `event_name: namespace/handler`. Events happen when code raises an event. When an event is raised, the associated handler function is ran.
+Coords start at 0 in the top left corner.
+
+### Dummy
+The dummy does not do anything. You can add any properties, actions, events, parameters you want. The dummy will never render on the map, thus, the visible property must always be set to false.
+```yaml
+Dummy:
+  type: "dummy"
+  visible: false
+```
 
 ### Chest
 ```yaml
@@ -101,6 +109,15 @@ Chest:
     event_name: event_handler
 ```
 
+### Exit
+```yaml
+Exit:
+  type: "exit"
+  id: string, optional (If you want to differentiate between exits)
+  coords: int[2]
+  visible: bool
+```
+
 ### Spawn Point
 ```yaml
 SpawnPoint:
@@ -108,4 +125,52 @@ SpawnPoint:
   linked_exit: string (ID of the exit that leads to this spawn point)
   coords: int[2]
   visible: bool
+```
+
+## Generators
+Generators describe what room will be generated when a player leaves through an exit.
+Each generator can have an associated exit id, meaning, that generator will only run if the player exited through that exit. If this is not used, set the `exit` paramter to `null`
+`exit: null` is a match all case, so if you want to match specific exits first, put those generators above the match all generator to ensure that those generators run instead of the match all.
+
+### Forced
+```yaml
+RoomGeneratorConfig:
+  exit: string (Exit identifier)
+  type: "forced"
+  room: string (Target room ID)
+```
+
+### Conditional
+```yaml
+RoomGeneratorConfig:
+  exit: string (Exit identifier)
+  type: "conditional"
+  conditions:
+    - type: if
+      a: something
+      op: something
+      b: something
+      room: string (If evaluates to true, change to this room)
+    - type: if (Multiple if statements can be added)
+    - type: room
+      room: string (Default if no condition matches)
+```
+
+### Random
+If you want to dynamically change the weight, you can either set it to a value by using the [`set`](YamlFunctions.md#calls) call, or increment/decrement it by changing the weight directly in the loaded room via a [plugin](CustomScripts.md)
+```yaml
+RoomGeneratorConfig:
+  exit: string (Exit identifier)
+  type: "random"
+  pool:
+    - room: string (Room ID)
+      weight: number
+```
+
+### Plugin
+```yaml
+RoomGeneratorConfig:
+  exit: string (Exit identifier)
+  type: "plugin"
+  handler: string (Module function reference)
 ```
