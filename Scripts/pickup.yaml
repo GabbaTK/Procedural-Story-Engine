@@ -1,0 +1,6 @@
+set:
+  field: current_entity.visible
+  value: false
+add:
+  field: player.inventory
+  value_template: current_entity.properties.data

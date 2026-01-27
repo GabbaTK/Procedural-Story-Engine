@@ -104,6 +104,26 @@ Chest:
     event_name: event_handler
 ```
 
+### Item
+The `data` property describes the item. `id` is always required and is the item identifier, and `name` is the player friendly name. `other_item_data` depends on the chosen item.
+If the item is from the default set of items described [here](Items.md), then you can use the described properties.
+If the item is not in the default set of items, then you must define the properties yourself.
+```yaml
+Item:
+  type: "item"
+  coords: int[2]
+  visible: bool
+  properties:
+    inspect_text: string
+    data:
+      id: string
+      name: string
+      other_item_data: other_item_data
+  actions:
+    action_map: "builtin/item", optional
+    action_name: namespace/function, optional
+```
+
 ### Exit
 ```yaml
 Exit:
