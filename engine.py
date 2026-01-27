@@ -78,7 +78,7 @@ class Player:
 
         tile = self.engine.current_room.layout.strip().split("\n")[self.coords[1] - 1][self.coords[0]]
 
-        if tile != "-" and tile != "|" and tile != "+":
+        if tile not in BLOCKING_TILES:
             self.coords[1] -= 1
             return True
         
@@ -89,7 +89,7 @@ class Player:
 
         tile = self.engine.current_room.layout.strip().split("\n")[self.coords[1] + 1][self.coords[0]]
 
-        if tile != "-" and tile != "|" and tile != "+":
+        if tile not in BLOCKING_TILES:
             self.coords[1] += 1
             return True
         
@@ -100,7 +100,7 @@ class Player:
 
         tile = self.engine.current_room.layout.strip().split("\n")[self.coords[1]][self.coords[0] - 1]
 
-        if tile != "-" and tile != "|" and tile != "+":
+        if tile not in BLOCKING_TILES:
             self.coords[0] -= 1
             return True
         
@@ -111,7 +111,7 @@ class Player:
 
         tile = self.engine.current_room.layout.strip().split("\n")[self.coords[1]][self.coords[0] + 1]
 
-        if tile != "-" and tile != "|" and tile != "+":
+        if tile not in BLOCKING_TILES:
             self.coords[0] += 1
             return True
         
@@ -146,7 +146,10 @@ class Player:
 
         match action:
             case "inventory": self.__staticaction_displayinventory()
-            case "quit": exit()
+            case "save": self.engine.saveGame()
+            case "quit":
+                self.engine.saveGame()
+                exit()
 
         return True
     
@@ -160,6 +163,8 @@ class Player:
 
 class PSEngine:
     def __init__(self, search_dir: str = "."):
+        self.version = "0.8.0"
+
         self.rooms = []
         self.world_flags = {}
         self.current_room = None
@@ -192,6 +197,13 @@ class PSEngine:
         if self.rooms != []: raise WorldAlreadyLoadedException("A world has already been loaded, unload it first and then load another.")
         if not os.path.exists(self.world_dir): raise WorldNotFoundException(f"The world folder '{world_name}' has not been found.")
 
+        status = self.loadGame()
+        if status:
+            return
+
+        self.world_flags["_world_name"] = world_name
+        self.__splashScreen()
+
         for file in os.listdir(self.world_dir):
             file = os.path.join(self.world_dir, file)
 
@@ -205,12 +217,12 @@ class PSEngine:
             with open(os.path.join(self.world_dir, "flags.json"), "r") as f:
                 self.world_flags = json.load(f)
 
-        self.world_flags["_world_name"] = world_name
-
         self.__loadActionMap()
         self.__loadAddons()
         self.__loadActions()
         self.__loadUserScripts()
+
+        self.__splashScreenEnd()
 
     def unloadWorld(self) -> None:
         """Unload a world"""
@@ -528,6 +540,98 @@ class PSEngine:
 
             print(" " * MIN_TERM_WIDTH, end="\r", flush=True)
 
+    def loadGame(self):
+        """Loads the game. If no save is present, returns None. If the player denies loading, returns False"""
+
+        global ETC_MAP, USER_ADVANCED_MOVEMENT, ENTITIES, BLOCKING_TILES
+
+        if not os.path.exists(os.path.join(self.world_dir, "save.json")): return None
+
+        with open(os.path.join(self.world_dir, "save.json"), "r") as f:
+            save = json.load(f)
+            save = toDotdict(save)
+
+        now = int(time.time())
+        elapsed = now - save.timestamp
+        if elapsed < 60:
+            ago = f"{elapsed} second{'s' if elapsed != 1 else ''} ago"
+        elif elapsed < 3600:
+            mins = elapsed // 60
+            ago = f"{mins} minute{'s' if mins != 1 else ''} ago"
+        elif elapsed < 86400:
+            hours = elapsed // 3600
+            ago = f"{hours} hour{'s' if hours != 1 else ''} ago"
+        else:
+            days = elapsed // 86400
+            ago = f"{days} day{'s' if days != 1 else ''} ago"
+
+        print(f"{AnsiColorCodes.Cyan}A save has been found:\n\nName: {save.name}\nDate: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(save.timestamp))} ({ago})")
+        print(f"Do you wish to load this save? (y/n){AnsiColorCodes.Reset}")
+
+        while True:
+            char = getch().lower()
+
+            if char == "n": return False
+            elif char == "y": break
+
+        self.player.coords = save.player.coords
+        self.player.hp = save.player.hp
+        self.player.max_hp = save.player.max_hp
+        self.player.level = save.player.level
+        self.player.inventory = save.player.inventory
+
+        self.current_room = save.current_room
+        self.rooms = save.rooms
+        self.world_flags = save.flags
+        self.world_scripts = save.scripts
+
+        ETC_MAP = save.etc_map
+        USER_ADVANCED_MOVEMENT = save.uam
+        ENTITIES = save.entities
+        BLOCKING_TILES = save.blocking_tiles
+
+        return True
+
+    def saveGame(self):
+        """Saves the game"""
+
+        save_name = input("Enter save name >>>")
+
+        save = {
+            "name": save_name,
+            "timestamp": int(time.time()),
+            "player": {
+                "coords": self.player.coords,
+                "hp": self.player.hp,
+                "max_hp": self.player.max_hp,
+                "level": self.player.level,
+                "inventory": self.player.inventory
+            },
+            "current_room": self.current_room,
+            "rooms": self.rooms,
+            "flags": self.world_flags,
+            "etc_map": ETC_MAP,
+            "uam": USER_ADVANCED_MOVEMENT,
+            "entities": ENTITIES,
+            "blocking_tiles": BLOCKING_TILES,
+            "scripts": self.world_scripts
+        }
+
+        with open(os.path.join(self.world_dir, "save.json"), "w") as f:
+            json.dump(save, f)
+
+    def __splashScreen(self):
+        replaced = SPLASH_SCREEN.replace("[[WORLD_NAME]]", self.world_flags["_world_name"])
+        replaced = replaced.replace("[[ENGINE_VERSION]]", self.version)
+        replaced = replaced.replace("[[ACTIONS]]", ", ".join(map(lambda x: x.title(), USER_STATIC_ACTION)))
+        replaced = replaced.replace("[[PADDING]]", PADDING_CHAR * len(self.version))
+        print(replaced)
+        print(f"{AnsiColorCodes.Cyan}Loading world...{AnsiColorCodes.Reset}", end="\r")
+
+    def __splashScreenEnd(self):
+        print(f"{AnsiColorCodes.Cyan}Done! Press any key to continue...{AnsiColorCodes.Reset}")
+        getch()
+
     def __canDraw(self, room):
         """Does the room fit into the terminal"""
         wr, hr = self.getRoomWH(room)
@@ -592,6 +696,9 @@ class PSEngine:
 
                 for item in loaded.get("entities", []):
                     ENTITIES.append(item)
+
+                for item in loaded.get("blocking_tiles", []):
+                    BLOCKING_TILES.append(item)
 
     def __loadUserScripts(self): # .py not .yaml
         if not os.path.exists(os.path.join(self.world_dir, "scripts")): return

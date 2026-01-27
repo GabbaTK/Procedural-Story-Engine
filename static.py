@@ -49,6 +49,27 @@ Make sure you trust the author of those scripts as they could do damage to your 
 
 Do you want to continue? (y/n) {AnsiColorCodes.Reset}"""
 
+PADDING_CHAR = "═"
+SPLASH_SCREEN = f"""{AnsiColorCodes.Cyan}
+╔══════════════════════════[[PADDING]]═════════╗
+║     PROCEDURAL STORY ENGINE v[[ENGINE_VERSION]]     ║
+╚══════════════════════════[[PADDING]]═════════╝
+
+  World: [[WORLD_NAME]]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Available Commands:
+
+Movement: w/a/s/d
+Actions:  [[ACTIONS]]
+
+Progress is automatically saved when you exit.
+To manually save, press SPACE, then type 'save'.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{AnsiColorCodes.Reset}"""
+
 # --------------------------------------
 # CONFIG
 # --------------------------------------
@@ -56,7 +77,8 @@ MIN_TERM_WIDTH = 50 # Random value
 ENTITIES = ["chest", "spawn_point"] # Required for "findEntityFromTemplate"
 USER_BASIC_MOVEMENT = ["w", "a", "s", "d"] # Movement
 USER_ADVANCED_MOVEMENT = ["inspect", "open", "close", "lock", "unlock", "gather", "leave", "pickup"] # Actions for entities
-USER_STATIC_ACTION = ["inventory", "quit"] # Actions to do anywhere
+USER_STATIC_ACTION = ["inventory", "quit", "save"] # Actions to do anywhere
+BLOCKING_TILES = ["-", "|", "+", "~", "\\", "/"]
 ETC_MAP = dotdict({ # Entity to char map
     "player": "@",
     "spawn_point": "S",

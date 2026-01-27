@@ -33,6 +33,7 @@ To define an addon, create a json in the `addons` folder. The following keys can
  - etc_map: Contains a dict where the key is the entity type, and the value is the character to render for that entity.
  - uam: Adds more commands that the player can type.
  - entities: Custom entities
+ - blocking_tiles: Tiles which block the players movements
 
 ## Actions Maps
 Action maps allow developers to quickly define actions for entities from pre-defined maps.
