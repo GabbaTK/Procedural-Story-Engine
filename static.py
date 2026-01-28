@@ -39,7 +39,7 @@ class dotdict(dict):
 UPDATE_FILES = {"engine.py": "https://raw.githubusercontent.com/GabbaTK/Procedural-Story-Engine/refs/heads/main/engine.py", "builtin.json": "https://raw.githubusercontent.com/GabbaTK/Procedural-Story-Engine/refs/heads/main/builtin.json", "static.py": "https://raw.githubusercontent.com/GabbaTK/Procedural-Story-Engine/refs/heads/main/static.py"}
 VERSION_URL = "https://raw.githubusercontent.com/GabbaTK/Procedural-Story-Engine/refs/heads/main/static.py"
 VERSION_REGEX = r'VERSION = "\d+\.\d+.\d+"'
-VERSION = "0.8.2"
+VERSION = "0.8.3"
 CUSTOM_SCRIPT_WARNING = f"""{AnsiColorCodes.Red}
 =============================
 
