@@ -36,6 +36,10 @@ class dotdict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
+UPDATE_FILES = {"engine.py": "https://raw.githubusercontent.com/GabbaTK/Procedural-Story-Engine/refs/heads/main/engine.py", "builtin.json": "https://raw.githubusercontent.com/GabbaTK/Procedural-Story-Engine/refs/heads/main/builtin.json", "static.py": "https://raw.githubusercontent.com/GabbaTK/Procedural-Story-Engine/refs/heads/main/static.py"}
+VERSION_URL = "https://raw.githubusercontent.com/GabbaTK/Procedural-Story-Engine/refs/heads/main/static.py"
+VERSION_REGEX = r'VERSION = "\d+\.\d+.\d+"'
+VERSION = "0.8.2"
 CUSTOM_SCRIPT_WARNING = f"""{AnsiColorCodes.Red}
 =============================
 
@@ -64,10 +68,22 @@ Available Commands:
 Movement: w/a/s/d
 Actions:  [[ACTIONS]]
 
+If you mistype an action, press enter. Backspace doesn't work.
 Progress is automatically saved when you exit.
 To manually save, press SPACE, then type 'save'.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{AnsiColorCodes.Reset}"""
+YOU_DIED = f"""{AnsiColorCodes.Red}
+╔══════════════════╗
+║     YOU DIED     ║
+╚══════════════════╝
+
+Level: [[LEVEL]]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Better luck next time!
 {AnsiColorCodes.Reset}"""
 
 # --------------------------------------

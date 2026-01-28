@@ -89,6 +89,12 @@ random:
 ```yaml
 spawn_player: exit_id # Spawns the player at the associated spawn with the provided exit id. If no spawn exists, spawns them at the default spawn. Can be a template, if not, prefix with 'STR:'
 ```
+```yaml
+damage_player: amount # To do dynamic damage, put a template
+```
+```yaml
+heal_player: amount # To do dynamic healing, put a template
+```
 
 ## Templates
 Templates look like this:

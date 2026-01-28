@@ -8,6 +8,7 @@ import contextlib
 import json
 import importlib.util
 import random
+from typing import Callable
 
 # --------------------------------------
 # EXCEPTIONS
@@ -141,6 +142,36 @@ class Player:
 
         self.engine._script_engine(func, current_entity)
 
+    def damage(self, value: int, callback: Callable = None):
+        """Damages the player
+
+        Args:
+            value (int): The amount of damage to do
+            callback (Callable, optional): If the player died, run this function instead of immediately ending the game. Use this to have a respawn mechanic. Defaults to None.
+        """
+
+        self.hp -= value
+
+        if self.hp <= 0:
+            self.hp = 0
+
+            if callback:
+                callback()
+            else:
+                self.engine.playerDied()
+
+    def heal(self, value: int):
+        """Heal the player
+
+        Args:
+            value (int): The amount to heal by
+        """
+
+        self.hp += value
+
+        if self.hp > self.max_hp:
+            self.hp = self.max_hp
+
     def __staticAction(self, action):
         if action not in USER_STATIC_ACTION: return False
 
@@ -163,8 +194,6 @@ class Player:
 
 class PSEngine:
     def __init__(self, search_dir: str = "."):
-        self.version = "0.8.0"
-
         self.rooms = []
         self.world_flags = {}
         self.current_room = None
@@ -620,11 +649,18 @@ class PSEngine:
         with open(os.path.join(self.world_dir, "save.json"), "w") as f:
             json.dump(save, f)
 
+    def playerDied(self):
+        print("\033[2J") # Clear the screen
+        text = YOU_DIED.replace("[[LEVEL]]", self.player.level)
+        print(text)
+        getch()
+        quit()
+
     def __splashScreen(self):
         replaced = SPLASH_SCREEN.replace("[[WORLD_NAME]]", self.world_flags["_world_name"])
-        replaced = replaced.replace("[[ENGINE_VERSION]]", self.version)
+        replaced = replaced.replace("[[ENGINE_VERSION]]", VERSION)
         replaced = replaced.replace("[[ACTIONS]]", ", ".join(map(lambda x: x.title(), USER_STATIC_ACTION)))
-        replaced = replaced.replace("[[PADDING]]", PADDING_CHAR * len(self.version))
+        replaced = replaced.replace("[[PADDING]]", PADDING_CHAR * len(VERSION))
         print(replaced)
         print(f"{AnsiColorCodes.Cyan}Loading world...{AnsiColorCodes.Reset}", end="\r")
 
@@ -824,6 +860,8 @@ class PSEngine:
                 case "random": self.__action_random(data, current_entity, current_item)
                 case "spawn_player": self.__action_spawnplayer(data, current_entity, current_item)
                 case "break": flag_manual_break = True
+                case "damage_player": self.__action_damageplayer(data, current_entity, current_item)
+                case "heal_player": self.__action_healplayer(data, current_entity, current_item)
                 case "raise":
                     handler, entity_of_event = self.__action_raise(data, current_entity, current_item)
                     namespace, new_func = self._handlerExists(handler, data)
@@ -1048,3 +1086,20 @@ class PSEngine:
             self.spawnPlayerAtLinkedExit(exit_id)
         except SpawnNotFoundException:
             self.spawnPlayerAtRoot()
+
+    def __action_damageplayer(self, params, current_entity, current_item):
+        if type(params) == str:
+            state_map = self.__buildStateMap(current_entity, current_item)
+            value = self.__renderTemplate(params, state_map)[0]
+            self.player.damage(value)
+        else:
+            self.player.damage(params)
+
+    def __action_healplayer(self, params, current_entity, current_item):
+        if type(params) == str:
+            state_map = self.__buildStateMap(current_entity, current_item)
+            value = self.__renderTemplate(params, state_map)[0]
+            self.player.heal(value)
+        else:
+            self.player.heal(params)
+
