@@ -99,8 +99,8 @@ Chest:
     key_id: string, optional
     contents: Item[]
   actions:
-    action_map: "builtin/chest", optional
-    action_name: namespace/function, optional
+    action_map: "builtin/chest" # optional
+    action_name: namespace/function # optional
   events: # optional
     event_name: event_handler
 ```
@@ -121,8 +121,29 @@ Item:
       name: string
       other_item_data: other_item_data
   actions:
-    action_map: "builtin/item", optional
-    action_name: namespace/function, optional
+    action_map: "builtin/item" # optional
+    action_name: namespace/function # optional
+  events: # optional
+    event_name: event_handler
+```
+
+### Door
+```yaml
+Door:
+  type: "door"
+  coords: int[2]
+  visible: bool
+  properties:
+    inspect_text: string
+    locked: bool
+    key_id: string
+    can_lock: bool
+    open: bool
+  actions:
+    action_map: "builtin/door" # optional
+    action_name: namespace/function # optional
+  events: # optional
+    event_name: event_handler
 ```
 
 ### Exit
@@ -133,8 +154,10 @@ Exit:
   coords: int[2]
   visible: bool
   actions:
-    action_map: "builtin/exit", optional
-    action_name: namespace/handler, optional
+    action_map: "builtin/exit" # optional
+    action_name: namespace/handler # optional
+  events: # optional
+    event_name: event_handler
 ```
 
 ### Spawn Point
@@ -144,6 +167,8 @@ SpawnPoint:
   linked_exit: string # ID of the exit that leads to this spawn point. null if ths is the default spawn point
   coords: int[2]
   visible: bool
+  events: # optional
+    event_name: event_handler
 ```
 
 ## Generators

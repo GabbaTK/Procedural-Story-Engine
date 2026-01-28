@@ -13,7 +13,7 @@ Engine.spawnPlayerAtRoot()
 while True:
     Engine.render()
     act = Engine.inputLoop()
-
+    
     match act:
         case "w": Engine.player.moveUp()
         case "a": Engine.player.moveLeft()

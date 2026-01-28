@@ -100,7 +100,8 @@ ETC_MAP = dotdict({ # Entity to char map
     "spawn_point": "S",
     "chest": "=",
     "exit": "E",
-    "item": "*"
+    "item": "*",
+    "door": "#"
 })
 #    "player": "@",   # standard
 #    "npc": "&",      # humanoid / intelligent entity

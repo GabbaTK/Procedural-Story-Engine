@@ -24,5 +24,5 @@ You have access to the full engine. To create scripts you manipulate the engine 
 
 ## Other Functions
  - onLoad -> Runs when a room change occurs
- - onRender -> Runs when `engine.render()` is called
+ - onRender -> Runs when `engine.render()` is called. Runs before the actual render loop
 These functions are required. If they are not used, put empty functions

@@ -59,6 +59,7 @@ class SpawnNotFoundException(Exception):
 class Player:
     def __init__(self):
         self.coords = [None, None]
+        self.last_coords = [None, None]
         self.hp = 20
         self.max_hp = 20
         self.level = 1
@@ -69,6 +70,7 @@ class Player:
         """Fully resets the player"""
 
         self.coords = [None, None]
+        self.last_coords = [None, None]
         self.hp = 20
         self.max_hp = 20
         self.level = 1
@@ -80,6 +82,8 @@ class Player:
         tile = self.engine.current_room.layout.strip().split("\n")[self.coords[1] - 1][self.coords[0]]
 
         if tile not in BLOCKING_TILES:
+            self.undone_move_entity = None
+            self.last_coords = dc(self.coords)
             self.coords[1] -= 1
             return True
         
@@ -91,6 +95,8 @@ class Player:
         tile = self.engine.current_room.layout.strip().split("\n")[self.coords[1] + 1][self.coords[0]]
 
         if tile not in BLOCKING_TILES:
+            self.undone_move_entity = None
+            self.last_coords = dc(self.coords)
             self.coords[1] += 1
             return True
         
@@ -102,6 +108,8 @@ class Player:
         tile = self.engine.current_room.layout.strip().split("\n")[self.coords[1]][self.coords[0] - 1]
 
         if tile not in BLOCKING_TILES:
+            self.undone_move_entity = None
+            self.last_coords = dc(self.coords)
             self.coords[0] -= 1
             return True
         
@@ -113,6 +121,8 @@ class Player:
         tile = self.engine.current_room.layout.strip().split("\n")[self.coords[1]][self.coords[0] + 1]
 
         if tile not in BLOCKING_TILES:
+            self.undone_move_entity = None
+            self.last_coords = dc(self.coords)
             self.coords[0] += 1
             return True
         
@@ -128,7 +138,7 @@ class Player:
             ActionNotFoundException: That action does not exit
         """
 
-        current_entity = self.engine.findEntityByCoords(self.engine.current_room, self.coords)
+        current_entity = self.engine.findEntityByCoords(self.engine.current_room, self.coords) or self.undone_move_entity
 
         if self.__staticAction(action): return
 
@@ -172,6 +182,11 @@ class Player:
         if self.hp > self.max_hp:
             self.hp = self.max_hp
 
+    def undoMove(self):
+        """Undos the last move action"""
+
+        self.coords = dc(self.last_coords)
+
     def __staticAction(self, action):
         if action not in USER_STATIC_ACTION: return False
 
@@ -193,7 +208,7 @@ class Player:
         self.engine.render(narration="You have: " + items, skip_next=True)
 
 class PSEngine:
-    def __init__(self, search_dir: str = "."):
+    def __init__(self, search_dir: str = ".", _debug_flags_neverload=False, _debug_flags_skipsplash=False):
         self.rooms = []
         self.world_flags = {}
         self.current_room = None
@@ -204,6 +219,9 @@ class PSEngine:
         self.actions = {}
         self.render_skip_next = False
         self.world_scripts = {}
+
+        self._DF_neverload = _debug_flags_neverload
+        self._DF_skipsplash = _debug_flags_skipsplash
         
         self.player.engine = self
 
@@ -419,7 +437,7 @@ class PSEngine:
         return max(map(lambda x: len(x), room.layout.strip().split("\n"))), len(room.layout.strip().split("\n"))
         
     def render(self, room: dict = None, narration: str = None, skip_next: bool = False) -> None:
-        """Renders a room
+        """Renders a room. This is also the main tick loop
 
         Args:
             room (dict, optional): The room to render. Defaults to PSEngine.current_room
@@ -429,6 +447,9 @@ class PSEngine:
         Raises:
             ValueError: Parameter missing
         """
+
+        for module in self.world_scripts.values():
+            module.onRender()
 
         if self.render_skip_next:
             self.render_skip_next = False
@@ -483,10 +504,6 @@ class PSEngine:
                 except KeyError as e:
                     raise EntityNotFoundException(f"Entity {e} is not in the default set of entities, nor has it been loaded by a custom map.")
 
-            # Draw player
-            buffer.seek(TL_Offset + self.player.coords[0] + self.player.coords[1] * chars_per_line)
-            buffer.write(ETC_MAP.player)
-
             if not narration:
                 # Add interactions
                 if (entity := self.findEntityByCoords(room, self.player.coords)):
@@ -501,12 +518,19 @@ class PSEngine:
                 buffer.seek(first_line + (h - 4) * chars_per_line + 2)
                 buffer.write("> " + narration)
 
+            # If player moved to a closed door, move the player back one space while still adding interactions
+            if (entity := self.findEntityByCoords(self.current_room, self.player.coords)):
+                if entity.type == "door" and not entity.get("properties", {}).get("open", True):
+                    self.player.undoMove()
+                    self.player.undone_move_entity = entity
+
+            # Draw player
+            buffer.seek(TL_Offset + self.player.coords[0] + self.player.coords[1] * chars_per_line)
+            buffer.write(ETC_MAP.player)
+
         print(buffer.getvalue())
 
         if skip_next: self.render_skip_next = True
-
-        for module in self.world_scripts.values():
-            module.onRender()
 
     def spawnPlayerAtRoot(self) -> None:
         """Reset a player to the root spawn point. The root spawn point is identified by having no linked exit
@@ -523,6 +547,7 @@ class PSEngine:
         if not spawn: raise EntityNotFoundException(f"Cannot find an unlinked spawn in room '{self.current_room.name}'")
 
         self.player.coords = dc(spawn.coords)
+        self.player.last_coords = dc(spawn.coords)
 
     def spawnPlayerAtLinkedExit(self, exit_id: str) -> None:
         """Spawns the player at the correct spawn depending on the exit
@@ -539,6 +564,7 @@ class PSEngine:
         if not spawn: raise SpawnNotFoundException(f"Cannot find a spawn in the room '{self.current_room.name}' with the linked exit set to '{exit_id}'")
 
         self.player.coords = dc(spawn.coords)
+        self.player.last_coords = dc(spawn.coords)
 
     def inputLoop(self) -> str:
         """Pools the player for an input. W/A/S/D is returned for a simple command, and the full command name (ex. INSPECT/OPEN/CLOSE) is returned for the complex commands. Everything is sent in lowercase
@@ -574,6 +600,7 @@ class PSEngine:
 
         global ETC_MAP, USER_ADVANCED_MOVEMENT, ENTITIES, BLOCKING_TILES
 
+        if self._DF_neverload: return False
         if not os.path.exists(os.path.join(self.world_dir, "save.json")): return None
 
         with open(os.path.join(self.world_dir, "save.json"), "r") as f:
@@ -624,10 +651,14 @@ class PSEngine:
     def saveGame(self):
         """Saves the game"""
 
-        save_name = input("Enter save name >>>")
+        #try:
+        #    save_name = input("Enter save name >>>")
+        #except KeyboardInterrupt:
+        #    print(f"\n{AnsiColorCodes.Yellow}Not saving{AnsiColorCodes.Reset}")
+        #    return
 
         save = {
-            "name": save_name,
+            "name": "Latest",#save_name,
             "timestamp": int(time.time()),
             "player": {
                 "coords": self.player.coords,
@@ -657,6 +688,8 @@ class PSEngine:
         quit()
 
     def __splashScreen(self):
+        if self._DF_skipsplash: return
+
         replaced = SPLASH_SCREEN.replace("[[WORLD_NAME]]", self.world_flags["_world_name"])
         replaced = replaced.replace("[[ENGINE_VERSION]]", VERSION)
         replaced = replaced.replace("[[ACTIONS]]", ", ".join(map(lambda x: x.title(), USER_STATIC_ACTION)))
@@ -665,6 +698,8 @@ class PSEngine:
         print(f"{AnsiColorCodes.Cyan}Loading world...{AnsiColorCodes.Reset}", end="\r")
 
     def __splashScreenEnd(self):
+        if self._DF_skipsplash: return
+
         print(f"{AnsiColorCodes.Cyan}Done! Press any key to continue...{AnsiColorCodes.Reset}")
         getch()
 

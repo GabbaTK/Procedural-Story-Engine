@@ -1,0 +1,13 @@
+if:
+  a: current_entity.properties.locked
+  op: ==
+  b: false
+  exec:
+    set:
+      field: current_entity.properties.open
+      value: true
+    display_text:
+      text: You open the door
+else:
+  display_text:
+    text: It is locked

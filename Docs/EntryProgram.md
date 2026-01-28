@@ -28,13 +28,14 @@ A minimal entry program for the Procedural Story Engine (PSEngine). This demo sh
     ```python
     Engine.render()
     act = Engine.inputLoop()
+    
     match act:
         case "w": Engine.player.moveUp()
         case "a": Engine.player.moveLeft()
         case "s": Engine.player.moveDown()
         case "d": Engine.player.moveRight()
         case _: Engine.player.doAction(act)
-        ```
+    ```
 
 ## Controls
  - Movement: w (up), a (left), s (down), d (right)
